@@ -14,7 +14,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -24,6 +26,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
@@ -93,7 +96,7 @@ fun Giris(navController: NavController) {
                 kAdi = text
             })
         }
-        Button(onClick = { navController.navigate("ChatRoom") }, modifier = Modifier.padding(0.dp, 15.dp, 0.dp, 0.dp)) { Text(text = "Giriş") }
+        ModernButon(onClick={navController.navigate("ChatRoom")},modifier=Modifier.padding(0.dp,15.dp,0.dp,0.dp),"Giriş")
     }
 }
 
@@ -105,23 +108,46 @@ fun ChatRoom(navController: NavController) {
     Column(modifier = Modifier
         .fillMaxSize()
         .background(Color.Red)
-        .padding(35.dp, 0.dp, 0.dp, 0.dp),
+        .padding(35.dp, 0.dp, 35.dp, 0.dp),
         horizontalAlignment = Alignment.Start,
         verticalArrangement = Arrangement.Center) {
         LazyColumn(
             modifier = Modifier
-                .fillMaxWidth(0.85f)
-                .fillMaxHeight(0.9f)
+                .fillMaxWidth()
+                .fillMaxHeight()
+                .weight(0.9f)
+                .padding(0.dp, 15.dp, 0.dp, 0.dp)
                 .background(Color.Blue),
         ) {
         }
-        Row (Modifier.background(Color.Gray)){
-            OutlinedTextField(value = mesaj, onValueChange = { text ->
-                mesaj = text
-            }, )
-            Button(onClick = { }) { Text(text = "Gönder") }
+        Row(Modifier
+            .background(Color.Gray)
+            .weight(0.1f)
+        ) {
+            OutlinedTextField(
+                value = mesaj,
+                onValueChange = { text ->
+                    mesaj = text
+                }, modifier = Modifier
+                    .weight(0.80f)
+            )
+            ModernButon(onClick = {},modifier = Modifier.weight(0.20f),"Gönder")
         }
     }
 
+}
+
+@Composable
+fun ModernButon(onClick:()->Unit,modifier:Modifier=Modifier,text:String) {
+    Button(
+        onClick =  onClick,
+        colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
+        modifier = modifier
+            .background(
+                brush = Brush.horizontalGradient(
+                    colors = listOf(Color(0xFF56CCF2), Color(0xFF2F80ED))
+                )
+            ),
+    ){Text(text=text)}
 }
 
