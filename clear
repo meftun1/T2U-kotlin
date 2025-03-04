@@ -1,0 +1,11 @@
+[33mcommit 709d98868d3454a1b8287619a553f6763d5162bf[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m)[m
+Author: meftun1 <emirylmaz130@gmail.com>
+Date:   Sat Mar 1 03:27:10 2025 +0300
+
+    jetpack component ile tasarımın temelleri ve type-safe navigation temelleri
+
+[33mcommit 561895a71ba6448df16379b9976524b06404c19c[m[33m ([m[1;31morigin/main[m[33m)[m
+Author: meftun1 <emirylmaz130@gmail.com>
+Date:   Thu Feb 27 16:12:38 2025 +0300
+
+    test yüklemesi

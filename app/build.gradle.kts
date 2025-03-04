@@ -74,4 +74,6 @@ dependencies {
     implementation(libs.kotlinx.serialization.json)
     implementation(platform("com.google.firebase:firebase-bom:33.10.0"))
     implementation("com.google.firebase:firebase-analytics-ktx")//ktx eklendi
+    implementation("com.google.firebase:firebase-messaging-ktx:24.1.0")
+    implementation("com.google.firebase:firebase-database-ktx:21.0.0")
 }
