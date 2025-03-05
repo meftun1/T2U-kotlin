@@ -152,7 +152,7 @@ fun MainScreen() {
                         Toast.makeText(context, "Çıkış Yapıldı", Toast.LENGTH_SHORT).show()
                     }
                     cikisDiyalog = true
-                    navController.navigateUp(
+                    navController.navigateUp()
                 }) {
                     Icon(
                         imageVector = Icons.Default.Close,
