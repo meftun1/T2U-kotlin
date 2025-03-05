@@ -48,11 +48,13 @@ import androidx.navigation.NavController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.toRoute
 import com.example.text2ukotent.ui.theme.Text2UKotEntTheme
 import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
 import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.database.ValueEventListener
+import kotlinx.serialization.Serializable
 
 
 class MainActivity : ComponentActivity() {
@@ -68,50 +70,124 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+@Serializable
+object Giris
+
+@Serializable
+data class SohbetOdasi(
+    val kAdi: String?
+)
+
 @Composable
 fun MainScreen() {
     val navController = rememberNavController()
-    NavHost(navController = navController, startDestination = "Giris") {
-        composable("Giris") { Giris(navController) }
-        composable("SohbetOdasi") { SohbetOdasi(navController, "") }
-    }
-}
+    NavHost(navController = navController, startDestination = Giris) {
+        composable<Giris> {
+            val font2 = FontFamily(Font(R.font.pixel))
+            val font = FontFamily.Default
+            var kAdi by remember {
+                mutableStateOf("")
+            }
+            Column(modifier = Modifier
+                .fillMaxSize()
+                .padding(16.dp, 20.dp),
+                verticalArrangement = Arrangement.Top,
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = "T2U",
+                    fontSize = 40.sp,
+                    fontFamily = font,
+                    modifier = Modifier.padding(0.dp, 0.dp, 0.dp, 20.dp)
+                )
 
-@Composable
-//@Preview
-fun Giris(navController: NavController) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = "Kullanıcı Adı",
+                        fontSize = 12.sp,
+                        fontFamily = font,
+                        modifier = Modifier.padding(10.dp, 0.dp)
+                    )
+                    OutlinedTextField(value = kAdi, onValueChange = { text ->
+                        kAdi = text
+                    })
+                }
 
-    val font2 = FontFamily(Font(R.font.pixel))
-    val font = FontFamily.Default
-    var kAdi by remember {
-        mutableStateOf("")
-    }
-    Column(modifier = Modifier
-        .fillMaxSize()
-        .padding(16.dp, 20.dp),
-        verticalArrangement = Arrangement.Top,
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Text(
-            text = "T2U",
-            fontSize = 40.sp,
-            fontFamily = font,
-            modifier = Modifier.padding(0.dp, 0.dp, 0.dp, 20.dp)
-        )
-
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                text = "Kullanıcı Adı",
-                fontSize = 12.sp,
-                fontFamily = font,
-                modifier = Modifier.padding(10.dp, 0.dp)
-            )
-            OutlinedTextField(value = kAdi, onValueChange = { text ->
-                kAdi = text
-            })
+                ModernButon(onClick = { GirisButon(kAdi, navController) }, modifier = Modifier.padding(0.dp, 15.dp, 0.dp, 0.dp), "Giriş")
+            }
         }
+        composable<SohbetOdasi> {
+            val argumanlar = it.toRoute<SohbetOdasi>()
+            var mesaj by remember { mutableStateOf("") }
+            val context = LocalContext.current
 
-        ModernButon(onClick = { GirisButon(kAdi, navController) }, modifier = Modifier.padding(0.dp, 15.dp, 0.dp, 0.dp), "Giriş")
+            var cikisDiyalog by remember { mutableStateOf(false) }
+            BackHandler(enabled = true) {
+                cikisDiyalog = true
+            }
+            if (cikisDiyalog) {
+                AlertDialog(
+                    onDismissRequest = { cikisDiyalog = false },
+                    title = { Text(text = "Çıkış Yap") },
+                    text = { Text(text = "Kullanıcıdan çıkış yapılacak") },
+                    confirmButton = {
+                        Button(onClick = {
+                            cikisDiyalog = false
+                            navController.popBackStack()
+                        }) { Text("Çıkış") }
+                    },
+                    dismissButton = {
+                        Button(onClick = {
+                            cikisDiyalog = false
+                        }) { Text("İptal") }
+                    }
+                )
+            }
+
+
+            Column(modifier = Modifier
+                .fillMaxSize()
+                .padding(35.dp, 0.dp, 35.dp, 0.dp),
+                horizontalAlignment = Alignment.Start,
+                verticalArrangement = Arrangement.Center) {
+                IconButton(onClick = {}) {
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = "Çıkış",
+                        tint = Color.Magenta,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .fillMaxHeight()
+                        .weight(0.9f)
+                        .padding(0.dp, 15.dp, 0.dp, 0.dp)
+                        .background(Color.Blue),
+                ) {
+                }
+                Row(Modifier
+                    .background(Color.Gray)
+                    .weight(0.1f)
+                ) {
+                    OutlinedTextField(
+                        value = mesaj,
+                        onValueChange = { text ->
+                            mesaj = text
+                        }, modifier = Modifier
+                            .weight(0.80f)
+                    )
+                    ModernButon(onClick = {}, modifier = Modifier.weight(0.20f), "Gönder")
+                }
+            }
+
+            DisposableEffect(Unit) {
+                onDispose {
+                    KullaniciCikis(argumanlar.kAdi.toString(), context)
+                }
+            }
+        }
     }
 }
 
@@ -125,14 +201,14 @@ fun GirisButon(kAdi: String, navController: NavController) {
             override fun onDataChange(snapshot: DataSnapshot) {
                 if (!snapshot.hasChildren()) {
                     databaseReference.child("Packages").child("OnlineUsers").child(kAdi).setValue(kAdi)
-                    navController.navigate("SohbetOdasi/$kAdi")
+                    navController.navigate(SohbetOdasi(kAdi))
                 } else {
                     for (incelenenKullanici in snapshot.children) {
                         if (snapshot.child(kAdi).value?.equals(kAdi) == true) {
                             Toast.makeText(navController.context, "Kullanıcı online", Toast.LENGTH_SHORT).show()
                         } else {
                             databaseReference.child("Packages").child("OnlineUsers").child(kAdi).setValue(kAdi)
-                            navController.navigate("SohbetOdasi/$kAdi")
+                            navController.navigate(SohbetOdasi(kAdi))
                         }
                     }
                 }
@@ -151,80 +227,16 @@ fun cikisYap(cikisDiyalog: Boolean) {
     TODO("Not yet implemented")
 }
 
-@Composable
-fun SohbetOdasi(navController: NavController, kAdi: String) {
-    var mesaj by remember { mutableStateOf("") }
-    val context = LocalContext.current
-    var cikisDiyalog by remember { mutableStateOf(false) }
-    BackHandler(enabled = true) {
-        cikisDiyalog = true
-    }
-    if (cikisDiyalog) {
-        AlertDialog(
-            onDismissRequest = { cikisDiyalog = false },
-            title = { Text(text = "Çıkış Yap") },
-            text = { Text(text = "Kullanıcıdan çıkış yapılacak") },
-            confirmButton = {
-                Button(onClick = {
-                    cikisDiyalog = false
-                    navController.popBackStack()
-                }) { Text("Çıkış") }
-            },
-            dismissButton = {
-                Button(onClick = {
-                    cikisDiyalog = false
-                }) { Text("İptal") }
-            }
-        )
-    }
-    Column(modifier = Modifier
-        .fillMaxSize()
-        .padding(35.dp, 0.dp, 35.dp, 0.dp),
-        horizontalAlignment = Alignment.Start,
-        verticalArrangement = Arrangement.Center) {
-        IconButton(onClick = {}) {
-            Icon(
-                imageVector = Icons.Default.Close,
-                contentDescription = "Çıkış",
-                tint = Color.Magenta,
-                modifier = Modifier.size(20.dp)
-            )
-        }
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxWidth()
-                .fillMaxHeight()
-                .weight(0.9f)
-                .padding(0.dp, 15.dp, 0.dp, 0.dp)
-                .background(Color.Blue),
-        ) {
-        }
-        Row(Modifier
-            .background(Color.Gray)
-            .weight(0.1f)
-        ) {
-            OutlinedTextField(
-                value = mesaj,
-                onValueChange = { text ->
-                    mesaj = text
-                }, modifier = Modifier
-                    .weight(0.80f)
-            )
-            ModernButon(onClick = {}, modifier = Modifier.weight(0.20f), "Gönder")
-        }
-    }
-
-    DisposableEffect(Unit) {
-        onDispose {
-            KullaniciCikis(kAdi, context)
-        }
-    }
-}
 
 fun KullaniciCikis(kAdi: String, cont: Context) {
+
+
+
+
     val ref = FirebaseDatabase.getInstance().getReference().child("Packages").child("OnlineUsers").child(kAdi)
     ref.removeValue().addOnSuccessListener {
         Toast.makeText(cont, "Çıkış Yapıldı", Toast.LENGTH_SHORT).show()
+
     }
 }
 
