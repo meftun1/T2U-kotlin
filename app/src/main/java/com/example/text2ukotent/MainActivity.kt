@@ -1,10 +1,13 @@
 package com.example.text2ukotent
 
+import android.content.Context
 import androidx.compose.ui.graphics.Color
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -14,12 +17,21 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.ExitToApp
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -27,9 +39,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
@@ -59,10 +71,9 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun MainScreen() {
     val navController = rememberNavController()
-    NavHost(navController = navController, startDestination = "ChatRoom") {
+    NavHost(navController = navController, startDestination = "Giris") {
         composable("Giris") { Giris(navController) }
-        composable("ChatRoom") { ChatRoom(navController) }
-
+        composable("SohbetOdasi") { SohbetOdasi(navController, "") }
     }
 }
 
@@ -100,31 +111,28 @@ fun Giris(navController: NavController) {
             })
         }
 
-        ModernButon(onClick = { girisButon(kAdi, navController) }, modifier = Modifier.padding(0.dp, 15.dp, 0.dp, 0.dp), "Giriş")
+        ModernButon(onClick = { GirisButon(kAdi, navController) }, modifier = Modifier.padding(0.dp, 15.dp, 0.dp, 0.dp), "Giriş")
     }
 }
 
-fun girisButon(uName: String, navController: NavController) {
+fun GirisButon(kAdi: String, navController: NavController) {
     val databaseReference = FirebaseDatabase.getInstance().getReference()
 
-    if (uName.isNullOrEmpty()){
+    if (kAdi.isNullOrEmpty()) {
         Toast.makeText(navController.context, "En az 3 karakterden oluşan bir kullanıcı adı girin", Toast.LENGTH_SHORT).show()
-    }
-    else{
+    } else {
         databaseReference.child("Packages").child("OnlineUsers").addListenerForSingleValueEvent(object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
-                if (!snapshot.hasChildren()){
-                    databaseReference.child("Packages").child("OnlineUsers").child(uName).setValue(uName)
-                    navController.navigate("ChatRoom")
-                }
-                else{
-                    for (incelenenKullanici in snapshot.children){
-                        if (snapshot.child(uName).value?.equals(uName) == true){
+                if (!snapshot.hasChildren()) {
+                    databaseReference.child("Packages").child("OnlineUsers").child(kAdi).setValue(kAdi)
+                    navController.navigate("SohbetOdasi/$kAdi")
+                } else {
+                    for (incelenenKullanici in snapshot.children) {
+                        if (snapshot.child(kAdi).value?.equals(kAdi) == true) {
                             Toast.makeText(navController.context, "Kullanıcı online", Toast.LENGTH_SHORT).show()
-                        }
-                        else{
-                            databaseReference.child("Packages").child("OnlineUsers").child(uName).setValue(uName)
-                            navController.navigate("ChatRoom")
+                        } else {
+                            databaseReference.child("Packages").child("OnlineUsers").child(kAdi).setValue(kAdi)
+                            navController.navigate("SohbetOdasi/$kAdi")
                         }
                     }
                 }
@@ -139,17 +147,49 @@ fun girisButon(uName: String, navController: NavController) {
 }
 
 
-@Composable
-fun ChatRoom(navController: NavController) {
-    var mesaj by remember { mutableStateOf("") }
-    // val context = LocalContext.current
+fun cikisYap(cikisDiyalog: Boolean) {
+    TODO("Not yet implemented")
+}
 
+@Composable
+fun SohbetOdasi(navController: NavController, kAdi: String) {
+    var mesaj by remember { mutableStateOf("") }
+    val context = LocalContext.current
+    var cikisDiyalog by remember { mutableStateOf(false) }
+    BackHandler(enabled = true) {
+        cikisDiyalog = true
+    }
+    if (cikisDiyalog) {
+        AlertDialog(
+            onDismissRequest = { cikisDiyalog = false },
+            title = { Text(text = "Çıkış Yap") },
+            text = { Text(text = "Kullanıcıdan çıkış yapılacak") },
+            confirmButton = {
+                Button(onClick = {
+                    cikisDiyalog = false
+                    navController.popBackStack()
+                }) { Text("Çıkış") }
+            },
+            dismissButton = {
+                Button(onClick = {
+                    cikisDiyalog = false
+                }) { Text("İptal") }
+            }
+        )
+    }
     Column(modifier = Modifier
         .fillMaxSize()
-        .background(Color.Red)
         .padding(35.dp, 0.dp, 35.dp, 0.dp),
         horizontalAlignment = Alignment.Start,
         verticalArrangement = Arrangement.Center) {
+        IconButton(onClick = {}) {
+            Icon(
+                imageVector = Icons.Default.Close,
+                contentDescription = "Çıkış",
+                tint = Color.Magenta,
+                modifier = Modifier.size(20.dp)
+            )
+        }
         LazyColumn(
             modifier = Modifier
                 .fillMaxWidth()
@@ -174,6 +214,18 @@ fun ChatRoom(navController: NavController) {
         }
     }
 
+    DisposableEffect(Unit) {
+        onDispose {
+            KullaniciCikis(kAdi, context)
+        }
+    }
+}
+
+fun KullaniciCikis(kAdi: String, cont: Context) {
+    val ref = FirebaseDatabase.getInstance().getReference().child("Packages").child("OnlineUsers").child(kAdi)
+    ref.removeValue().addOnSuccessListener {
+        Toast.makeText(cont, "Çıkış Yapıldı", Toast.LENGTH_SHORT).show()
+    }
 }
 
 @Composable
@@ -189,4 +241,5 @@ fun ModernButon(onClick: () -> Unit, modifier: Modifier = Modifier, text: String
             ),
     ) { Text(text = text) }
 }
+
 
