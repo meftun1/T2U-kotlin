@@ -7,7 +7,6 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
-import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -20,9 +19,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.ExitToApp
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -31,7 +28,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -100,7 +96,6 @@ fun MainScreen() {
                     fontFamily = font,
                     modifier = Modifier.padding(0.dp, 0.dp, 0.dp, 20.dp)
                 )
-
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         text = "Kullanıcı Adı",
@@ -112,7 +107,6 @@ fun MainScreen() {
                         kAdi = text
                     })
                 }
-
                 ModernButon(onClick = { GirisButon(kAdi, navController) }, modifier = Modifier.padding(0.dp, 15.dp, 0.dp, 0.dp), "Giriş")
             }
         }
@@ -133,7 +127,11 @@ fun MainScreen() {
                     confirmButton = {
                         Button(onClick = {
                             cikisDiyalog = false
-                            navController.popBackStack()
+                            val ref = FirebaseDatabase.getInstance().getReference().child("Packages").child("OnlineUsers").child(argumanlar.kAdi.toString())
+                            ref.removeValue().addOnSuccessListener {
+                                Toast.makeText(context, "Çıkış Yapıldı", Toast.LENGTH_SHORT).show()
+                            }
+                            navController.navigateUp()
                         }) { Text("Çıkış") }
                     },
                     dismissButton = {
@@ -143,14 +141,19 @@ fun MainScreen() {
                     }
                 )
             }
-
-
             Column(modifier = Modifier
                 .fillMaxSize()
                 .padding(35.dp, 0.dp, 35.dp, 0.dp),
                 horizontalAlignment = Alignment.Start,
                 verticalArrangement = Arrangement.Center) {
-                IconButton(onClick = {}) {
+                IconButton(onClick = {
+                    val ref = FirebaseDatabase.getInstance().getReference().child("Packages").child("OnlineUsers").child(argumanlar.kAdi.toString())
+                    ref.removeValue().addOnSuccessListener {
+                        Toast.makeText(context, "Çıkış Yapıldı", Toast.LENGTH_SHORT).show()
+                    }
+                    cikisDiyalog = true
+                    navController.navigateUp(
+                }) {
                     Icon(
                         imageVector = Icons.Default.Close,
                         contentDescription = "Çıkış",
@@ -181,21 +184,23 @@ fun MainScreen() {
                     ModernButon(onClick = {}, modifier = Modifier.weight(0.20f), "Gönder")
                 }
             }
-
-            DisposableEffect(Unit) {
-                onDispose {
-                    KullaniciCikis(argumanlar.kAdi.toString(), context)
-                }
-            }
+            /*
+                        DisposableEffect(Unit) {
+                            onDispose {
+                                KullaniciCikis(argumanlar.kAdi.toString(), context)
+                            }
+                        }
+            */
         }
     }
 }
 
 fun GirisButon(kAdi: String, navController: NavController) {
     val databaseReference = FirebaseDatabase.getInstance().getReference()
-
-    if (kAdi.isNullOrEmpty()) {
+    var yeniGirisYap = true
+    if (kAdi.length < 3 || kAdi.isEmpty()) {
         Toast.makeText(navController.context, "En az 3 karakterden oluşan bir kullanıcı adı girin", Toast.LENGTH_SHORT).show()
+        return
     } else {
         databaseReference.child("Packages").child("OnlineUsers").addListenerForSingleValueEvent(object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
@@ -204,12 +209,17 @@ fun GirisButon(kAdi: String, navController: NavController) {
                     navController.navigate(SohbetOdasi(kAdi))
                 } else {
                     for (incelenenKullanici in snapshot.children) {
-                        if (snapshot.child(kAdi).value?.equals(kAdi) == true) {
+                        if (incelenenKullanici.value?.equals(kAdi) == true) {
                             Toast.makeText(navController.context, "Kullanıcı online", Toast.LENGTH_SHORT).show()
+                            yeniGirisYap = false
+                            return
                         } else {
-                            databaseReference.child("Packages").child("OnlineUsers").child(kAdi).setValue(kAdi)
-                            navController.navigate(SohbetOdasi(kAdi))
+                            yeniGirisYap = true
                         }
+                    }
+                    if (yeniGirisYap) {
+                        databaseReference.child("Packages").child("OnlineUsers").child(kAdi).setValue(kAdi)
+                        navController.navigate(SohbetOdasi(kAdi))
                     }
                 }
             }
@@ -220,24 +230,6 @@ fun GirisButon(kAdi: String, navController: NavController) {
         })
     }
 
-}
-
-
-fun cikisYap(cikisDiyalog: Boolean) {
-    TODO("Not yet implemented")
-}
-
-
-fun KullaniciCikis(kAdi: String, cont: Context) {
-
-
-
-
-    val ref = FirebaseDatabase.getInstance().getReference().child("Packages").child("OnlineUsers").child(kAdi)
-    ref.removeValue().addOnSuccessListener {
-        Toast.makeText(cont, "Çıkış Yapıldı", Toast.LENGTH_SHORT).show()
-
-    }
 }
 
 @Composable
