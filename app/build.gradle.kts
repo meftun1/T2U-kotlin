@@ -12,8 +12,8 @@ android {
 
     defaultConfig {
         applicationId = "com.example.text2ukotent"
-        minSdk = 24
-        targetSdk = 34 //34 dü
+        minSdk = 26
+        targetSdk = 35 //34 dü
         versionCode = 1
         versionName = "1.0"
 
