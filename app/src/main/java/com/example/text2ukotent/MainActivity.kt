@@ -1,12 +1,15 @@
 package com.example.text2ukotent
+
 import androidx.compose.ui.graphics.Color
 import android.os.Bundle
+import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -30,12 +33,12 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
@@ -57,6 +60,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
 import com.example.text2ukotent.ui.theme.Text2UKotEntTheme
+import com.google.firebase.database.ChildEventListener
 import com.google.firebase.database.DataSnapshot
 import com.google.firebase.database.DatabaseError
 import com.google.firebase.database.FirebaseDatabase
@@ -66,15 +70,20 @@ import java.time.Instant
 import java.time.ZoneId
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.ProcessLifecycleOwner
+
+
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
             AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO)
             Text2UKotEntTheme {
+                YasamDongusuGozlemcisi()
                 MainScreen()
             }
-
         }
     }
 }
@@ -88,7 +97,6 @@ data class SohbetOdasi(val kAdi: String?)
 @Serializable
 data class MesajPaketi(val kadi: String = "", val mesaj: String = "", val zamanDamgasi: String? = "")
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainScreen() {
     val navController = rememberNavController()
@@ -120,10 +128,13 @@ fun MainScreen() {
                         modifier = Modifier.padding(bottom = 32.dp)
                     )
 
-                    // Kullanıcı Adı Girişi
+                    // Kullanıcı adı girişi
                     OutlinedTextField(
                         value = kAdi,
-                        onValueChange = { kAdi = it },
+                        //Girilen değer her değiştiğinde çağrılıyor eğer boşluk gelirse kabul etmiyor
+                        onValueChange = {
+                            if (!it.contains(" ")) kAdi = it
+                        },
                         label = { Text(text = "Kullanıcı Adı", color = Color.White) },
                         singleLine = true,
                         modifier = Modifier
@@ -133,7 +144,7 @@ fun MainScreen() {
                     )
 
                     Spacer(modifier = Modifier.height(24.dp))
-
+                    //Giriş tuşu tasarımı
                     Button(
                         onClick = {
                             if (kAdi.isNotBlank()) {
@@ -159,59 +170,56 @@ fun MainScreen() {
             val argumanlar = it.toRoute<SohbetOdasi>()
             var mesaj by remember { mutableStateOf("") }
             val context = LocalContext.current
-
+            //Diyalog değeri her değer değiştirdiği zaman ekranda çıkışın belirmesini sağlar
             var cikisDiyalog by remember { mutableStateOf(false) }
+            //Geri tuşuna basıldığında çalışır
             BackHandler(enabled = true) {
                 cikisDiyalog = true
             }
             if (cikisDiyalog) {
-                AlertDialog(onDismissRequest = { cikisDiyalog = false },
+                AlertDialog(
+                    onDismissRequest = { cikisDiyalog = false },
                     title = { Text(fontWeight = FontWeight.Bold, text = "Çıkış Yap") },
                     text = { Text(text = "Kullanıcıdan çıkış yapılacak") },
                     confirmButton = {
-                    Button(
-                        colors = ButtonDefaults.buttonColors(containerColor = Color.Red), onClick = {
+                        Button(
+                            colors = ButtonDefaults.buttonColors(containerColor = Color.Red), onClick = {
+                                cikisDiyalog = false
+                                //Çıkış onaylanırsa kullanıcıyı OnlineUsers içinden siler ve giriş ekranına aktarır
+                                val ref = FirebaseDatabase.getInstance().getReference().child("Packages").child("OnlineUsers").child(argumanlar.kAdi.toString())
+                                ref.removeValue().addOnSuccessListener {
+                                    Toast.makeText(context, "Çıkış Yapıldı", Toast.LENGTH_SHORT).show()
+                                }
+                                navController.navigateUp()
+                            }) { Text("Çıkış") }
+                    },
+                    dismissButton = {
+                        Button(onClick = {
                             cikisDiyalog = false
-                            val ref = FirebaseDatabase.getInstance().getReference().child("Packages").child("OnlineUsers").child(argumanlar.kAdi.toString())
-                            ref.removeValue().addOnSuccessListener {
-                                Toast.makeText(context, "Çıkış Yapıldı", Toast.LENGTH_SHORT).show()
-                            }
-                            navController.navigateUp()
-                        }) { Text("Çıkış") }
-                }, dismissButton = {
-                    Button(onClick = {
-                        cikisDiyalog = false
-                    }) { Text("İptal") }
-                },
+                        }) { Text("İptal") }
+                    },
                 )
             }
 
             val dbRef = FirebaseDatabase.getInstance().getReference()
+            //Mesaj paketlerinin hatırlanması
             val paketler = remember { mutableStateListOf<MesajPaketi>() }
-
-
-            dbRef.child("Packages").child("MessageLog").addValueEventListener(object : ValueEventListener {
-                override fun onDataChange(snapshot: DataSnapshot) {
-                    paketler.clear()
-                    if (paketler.isEmpty()) {
-                        for (childSnapshot in snapshot.children) {
-                            val alinanPaket = childSnapshot.getValue(MesajPaketi::class.java)
-                            if (alinanPaket != null) {
-                                paketler.add(alinanPaket)
-                            }
-                        }
-                    } else {
-                        val alinanPaket = snapshot.children.lastOrNull()?.getValue(MesajPaketi::class.java)
-                        if (alinanPaket != null) {
-                            paketler.add(alinanPaket)
-                        }
+            dbRef.child("Packages").child("MessageLog").addChildEventListener(object : ChildEventListener {
+                override fun onChildAdded(snapshot: DataSnapshot, previousChildName: String?) {
+                    val alinanPaket = snapshot.getValue(MesajPaketi::class.java)
+                    //Paketin boş olmadığı ve gelen son paketin zaten ekli olup olmadığı kontrol edilir. Zaten ekli paket yeniden eklenmez
+                    if (alinanPaket != null && !paketler.contains(alinanPaket)) {
+                        paketler.add(alinanPaket)
                     }
                 }
 
-                override fun onCancelled(error: DatabaseError) {
-                }
+                override fun onChildChanged(snapshot: DataSnapshot, previousChildName: String?) {}
+                override fun onChildRemoved(snapshot: DataSnapshot) {}
+                override fun onChildMoved(snapshot: DataSnapshot, previousChildName: String?) {}
+                override fun onCancelled(error: DatabaseError) {}
             })
 
+            //Sohbetin otomatik olarak en alta kayması
             val listState = rememberLazyListState()
             LaunchedEffect(paketler.size) {
                 if (paketler.isNotEmpty()) {
@@ -219,23 +227,27 @@ fun MainScreen() {
                     )
                 }
             }
+            //Mesaj yazma ve görüntüleme bölümlerini içeren container
             Column(modifier = Modifier
                 .fillMaxSize(),
                 horizontalAlignment = Alignment.Start, verticalArrangement = Arrangement.Center) {
+                //Üst bar
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(56.dp)
-                        .background(Color(0xFF2F80ED)) // Üst barın arka plan rengi
+                        .background(Color(0xFF2F80ED))
                 )
                 {
+                    //Sol üstteki çıkış ikonu
                     IconButton(onClick = {
                         cikisDiyalog = true
                     }, modifier = Modifier
-                        .align(Alignment.CenterStart) // Sol üstte konumlandırma
+                        .align(Alignment.CenterStart)
                         .padding(start = 8.dp)) {
                         Icon(imageVector = Icons.Default.Close, contentDescription = "Çıkış", tint = Color.White)
                     }
+                    //Sağ alttaki kullanıcı adı
                     Text(
                         text = argumanlar.kAdi.toString(),
                         color = Color.White,
@@ -246,16 +258,19 @@ fun MainScreen() {
                             .align(Alignment.BottomEnd)
                             .padding(end = 8.dp, bottom = 8.dp))
                 }
+                //Mesajların listelenmesi için container
                 LazyColumn(modifier = Modifier
                     .fillMaxWidth(0.95f)
                     .fillMaxHeight()
                     .weight(0.9f), state = listState, verticalArrangement = Arrangement.Bottom) {
+                    //Her mesaj geldiğinde pakete eklenir ve mesaj için satır oluşturulur
                     items(paketler) { paket ->
                         if (paket.kadi != "") {
                             MesajSatiri(paket, argumanlar.kAdi)
                         }
                     }
                 }
+                //Alt taraftaki mesaj gönderme kısmı
                 Row(Modifier
                     .fillMaxWidth()
                     .padding(16.dp, 0.dp, 16.dp, 0.dp)
@@ -263,21 +278,18 @@ fun MainScreen() {
                     .padding(horizontal = 8.dp, vertical = 4.dp),
                     verticalAlignment = Alignment.CenterVertically) {
 
+                    //Mesaj girilen bölüm
                     OutlinedTextField(
                         value = mesaj,
                         onValueChange = { mesaj = it },
                         placeholder = { Text(text = "Mesajınızı yazın...") },
-                        /*colors = TextFieldDefaults.outlinedTextFieldColors(
-                            focusedBorderColor = Color.Transparent,
-                            unfocusedBorderColor = Color.Transparent,
-                            backgroundColor = Color.White
-                        ),*/
                         shape = RoundedCornerShape(18.dp),
                         singleLine = true,
-                        modifier = Modifier.padding(end = 5.dp)
+                        modifier = Modifier
+                            .padding(end = 5.dp)
                             .fillMaxWidth(.85f)
                     )
-
+                    //Mesaj gönderme tuşu
                     IconButton(onClick = {
                         if (mesaj.isNotBlank()) {
                             val zamanDamgasi = Instant.now()
@@ -301,6 +313,7 @@ fun MainScreen() {
     }
 }
 
+//Mesajı veri tabanına yaz
 fun MesajGonder(mesajPaketi: MesajPaketi) {
     val dataBaseRef = FirebaseDatabase.getInstance().getReference()
     dataBaseRef.child("Packages").child("MessageLog").child(mesajPaketi.zamanDamgasi.toString()).setValue(mesajPaketi)
@@ -309,17 +322,21 @@ fun MesajGonder(mesajPaketi: MesajPaketi) {
 fun GirisButon(kAdi: String, navController: NavController) {
     val databaseReference = FirebaseDatabase.getInstance().getReference()
     var yeniGirisYap = true
-    if (kAdi.length < 3 || kAdi.isEmpty()) {
-        Toast.makeText(navController.context, "En az 3 karakterden oluşan bir kullanıcı adı girin", Toast.LENGTH_SHORT).show()
+    //Kullanıcı adı kontrolü 3-10 karakter
+    if (kAdi.length > 10 || kAdi.length < 3 || kAdi.isEmpty()) {
+        Toast.makeText(navController.context, "3-10 karakterden oluşan bir kullanıcı adı girin", Toast.LENGTH_SHORT).show()
         return
     } else {
+        //Veri tabanındaki OnlineUsers kısmına giriş yapan kullanıcının adı yazılıyor
         databaseReference.child("Packages").child("OnlineUsers").addListenerForSingleValueEvent(object : ValueEventListener {
             override fun onDataChange(snapshot: DataSnapshot) {
+                //Online kullanıcı yoksa kontrol yapılmaz doğrudan eklenir
                 if (!snapshot.hasChildren()) {
                     databaseReference.child("Packages").child("OnlineUsers").child(kAdi).setValue(kAdi)
                     navController.navigate(SohbetOdasi(kAdi))
                 } else {
                     for (incelenenKullanici in snapshot.children) {
+                        //Kullanıcı zaten OnlineUsers içindeyse girişe izin verilmiyor
                         if (incelenenKullanici.value?.equals(kAdi) == true) {
                             Toast.makeText(navController.context, "Kullanıcı online", Toast.LENGTH_SHORT).show()
                             yeniGirisYap = false
@@ -328,6 +345,7 @@ fun GirisButon(kAdi: String, navController: NavController) {
                             yeniGirisYap = true
                         }
                     }
+                    //Kullanıcı girişine izin veriliyor ve veritabanı güncelleniyor
                     if (yeniGirisYap) {
                         databaseReference.child("Packages").child("OnlineUsers").child(kAdi).setValue(kAdi)
                         navController.navigate(SohbetOdasi(kAdi))
@@ -335,50 +353,30 @@ fun GirisButon(kAdi: String, navController: NavController) {
                 }
             }
 
-            override fun onCancelled(error: DatabaseError) {
-
-            }
+            override fun onCancelled(error: DatabaseError) {}
         })
     }
 
 }
 
-/*
-@Composable
-fun MesajSatiri(paket: MesajPaketi, aktifKullanici: String?) {
-    Row(modifier = Modifier
-        .padding(8.dp)
-        .then((if (paket.kadi == aktifKullanici) {
-            Modifier.background(Color.Red)
-        } else {
-            Modifier.background(Color.Yellow)
-        })), verticalAlignment = Alignment.CenterVertically) {
-        Text(text = paket.kadi, color = Color.Black, modifier = Modifier.weight(0.22f))
-        Spacer(modifier = Modifier.width(8.dp))
-        Text(text = paket.mesaj, color = Color.Gray, modifier = Modifier.weight(0.63f))
-        Spacer(modifier = Modifier.width(8.dp))
-        val zamanDamgasiParcala = paket.zamanDamgasi!!.split("|")
-        val SDS = zamanDamgasiParcala[2]
-        val SD = SDS.split(":")
-        Box(modifier = Modifier.weight(0.15f), contentAlignment = Alignment.CenterEnd) {
-            Text(text = SD[0] + ":" + SD[1], color = Color.Magenta, fontSize = 8.sp)
-        }
-
-    }
-}
-*/
 @Composable
 fun MesajSatiri(
     paket: MesajPaketi, aktifKullanici: String?
 ) {
+    //Mesajların zaman damgası parçalanıyor
     val zamanDamgasiParcala = paket.zamanDamgasi!!.split("|")
     val SDS = zamanDamgasiParcala[2]
     val SD = SDS.split(":")
+    val YGA = zamanDamgasiParcala[0]
+    val AG = YGA.split("-")
+    var zaman by remember { mutableStateOf(SD[0] + ":" + SD[1]) }
+    //En dış container
     Row(
         modifier = Modifier.fillMaxWidth(),
-
+        // Eklenecek mesaj aktif olan kullanıcıdansa sağa yaslamasını sağlıyor
         horizontalArrangement = if (aktifKullanici == paket.kadi) Arrangement.End else Arrangement.Start
     ) {
+        //Mesaj kutusunun özellikleri
         Column(
             modifier = Modifier
                 .padding(8.dp)
@@ -389,28 +387,76 @@ fun MesajSatiri(
                 .padding(12.dp)
                 .widthIn(min = 80.dp, max = 265.dp)
         ) {
-            Text(
+            Text( //Kullanıcı adı
                 text = paket.kadi,
                 color = if (aktifKullanici == paket.kadi) Color.LightGray else Color.DarkGray,
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold
             )
             Text(
+                //Mesaj
                 text = paket.mesaj,
                 color = if (aktifKullanici == paket.kadi) Color.White else Color.Black,
                 fontSize = 16.sp,
-                fontWeight = FontWeight.Normal
+                fontWeight = FontWeight.Normal,
             )
-            Text(
-                text = SD[0] + ":" + SD[1],
+            Text( //Zaman damgasi
+                text = zaman,
                 color = if (aktifKullanici == paket.kadi) Color.White.copy(alpha = 0.7f) else Color.Black.copy(alpha = 0.7f),
                 fontSize = 12.sp,
                 textAlign = TextAlign.End,
                 modifier = Modifier
+                    .clickable {
+                        zaman = AG[1] + "/" + AG[2] + "|" + SD[0] + ":" + SD[1]
+                    }
                     .align(Alignment.End)
                     .padding(top = 4.dp)
+
             )
+
         }
     }
 }
+
+@Composable
+fun YasamDongusuGozlemcisi() {
+    val donguSahibi = ProcessLifecycleOwner.get()
+    val donguGozlemcisi = LifecycleEventObserver { _, event ->
+        when (event) {
+            Lifecycle.Event.ON_CREATE -> {
+                Log.println(Log.INFO,"ismet","oluştu")
+            }
+            Lifecycle.Event.ON_START -> {
+                Log.println(Log.INFO,"ismet","başladı")
+            }
+            Lifecycle.Event.ON_RESUME -> {
+                Log.println(Log.INFO,"ismet","devam etti")
+            }
+            Lifecycle.Event.ON_PAUSE -> {
+                Log.println(Log.INFO,"ismet","pause oldu")
+            }
+            Lifecycle.Event.ON_STOP -> {
+                // Uygulama arka planda veya kapanmak üzere
+                Log.println(Log.INFO,"ismet","stop oldu bg olması lazım")
+            }
+            Lifecycle.Event.ON_DESTROY -> {
+                // Uygulama kapanıyor (Aniden kapandıysa da bu çalışabilir)
+                Log.println(Log.INFO,"ismet","kapandı")
+            }
+            Lifecycle.Event.ON_ANY -> {}
+        }
+
+    }
+    DisposableEffect(donguSahibi) {
+        donguSahibi.lifecycle.addObserver(donguGozlemcisi)
+        onDispose {
+            donguSahibi.lifecycle.removeObserver(donguGozlemcisi)
+        }
+    }
+}
+
+
+
+
+
 
