@@ -1,5 +1,4 @@
 package com.example.text2ukotent
-
 import androidx.compose.ui.graphics.Color
 import android.os.Bundle
 import android.widget.Toast
@@ -7,8 +6,6 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.appcompat.app.AppCompatDelegate
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.defaultDecayAnimationSpec
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -18,20 +15,22 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.ButtonDefaults.shape
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
@@ -48,8 +47,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.Font
-import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
@@ -63,13 +62,10 @@ import com.google.firebase.database.DatabaseError
 import com.google.firebase.database.FirebaseDatabase
 import com.google.firebase.database.ValueEventListener
 import kotlinx.serialization.Serializable
-import org.intellij.lang.annotations.JdkConstants.HorizontalAlignment
 import java.time.Instant
 import java.time.ZoneId
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
-
-
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -92,29 +88,73 @@ data class SohbetOdasi(val kAdi: String?)
 @Serializable
 data class MesajPaketi(val kadi: String = "", val mesaj: String = "", val zamanDamgasi: String? = "")
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MainScreen() {
     val navController = rememberNavController()
     NavHost(navController = navController, startDestination = Giris) {
         composable<Giris> {
-            val font2 = FontFamily(Font(R.font.pixel))
-            val font = FontFamily.Default
+            // Kullanıcı adını tutacak state
             var kAdi by remember {
                 mutableStateOf("")
             }
-            Column(modifier = Modifier
-                .fillMaxSize()
-                .padding(32.dp, 24.dp), verticalArrangement = Arrangement.Top, horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(text = "T2U", fontSize = 40.sp, fontFamily = font, modifier = Modifier.padding(0.dp, 0.dp, 0.dp, 20.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(text = "Kullanıcı Adı", fontSize = 12.sp, fontFamily = font, modifier = Modifier.padding(10.dp, 0.dp))
-                    OutlinedTextField(value = kAdi, onValueChange = { text ->
-                        kAdi = text
-                    }, singleLine = true, modifier = Modifier.fillMaxWidth())
+            // Arka plan
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Brush.verticalGradient(listOf(Color(0xFF56CCF2), Color(0xFF2F80ED))))
+                    .padding(16.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    // Uygulamanın Adı
+                    Text(
+                        text = "T2U",
+                        fontSize = 48.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White,
+                        modifier = Modifier.padding(bottom = 32.dp)
+                    )
+
+                    // Kullanıcı Adı Girişi
+                    OutlinedTextField(
+                        value = kAdi,
+                        onValueChange = { kAdi = it },
+                        label = { Text(text = "Kullanıcı Adı", color = Color.White) },
+                        singleLine = true,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp)
+                            .background(Color.White.copy(alpha = 0.2f), shape = RoundedCornerShape(8.dp))
+                    )
+
+                    Spacer(modifier = Modifier.height(24.dp))
+
+                    Button(
+                        onClick = {
+                            if (kAdi.isNotBlank()) {
+                                GirisButon(kAdi, navController)
+                            }
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp)
+                            .height(48.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFF2F80ED)
+                        ),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Text(text = "Giriş", color = Color.White, fontSize = 18.sp)
+                    }
                 }
-                ModernButon(onClick = { GirisButon(kAdi, navController) }, modifier = Modifier.padding(0.dp, 15.dp, 0.dp, 0.dp), "Giriş")
             }
         }
+
         composable<SohbetOdasi> {
             val argumanlar = it.toRoute<SohbetOdasi>()
             var mesaj by remember { mutableStateOf("") }
@@ -125,20 +165,25 @@ fun MainScreen() {
                 cikisDiyalog = true
             }
             if (cikisDiyalog) {
-                AlertDialog(onDismissRequest = { cikisDiyalog = false }, title = { Text(text = "Çıkış Yap") }, text = { Text(text = "Kullanıcıdan çıkış yapılacak") }, confirmButton = {
-                    Button(onClick = {
-                        cikisDiyalog = false
-                        val ref = FirebaseDatabase.getInstance().getReference().child("Packages").child("OnlineUsers").child(argumanlar.kAdi.toString())
-                        ref.removeValue().addOnSuccessListener {
-                            Toast.makeText(context, "Çıkış Yapıldı", Toast.LENGTH_SHORT).show()
-                        }
-                        navController.navigateUp()
-                    }) { Text("Çıkış") }
+                AlertDialog(onDismissRequest = { cikisDiyalog = false },
+                    title = { Text(fontWeight = FontWeight.Bold, text = "Çıkış Yap") },
+                    text = { Text(text = "Kullanıcıdan çıkış yapılacak") },
+                    confirmButton = {
+                    Button(
+                        colors = ButtonDefaults.buttonColors(containerColor = Color.Red), onClick = {
+                            cikisDiyalog = false
+                            val ref = FirebaseDatabase.getInstance().getReference().child("Packages").child("OnlineUsers").child(argumanlar.kAdi.toString())
+                            ref.removeValue().addOnSuccessListener {
+                                Toast.makeText(context, "Çıkış Yapıldı", Toast.LENGTH_SHORT).show()
+                            }
+                            navController.navigateUp()
+                        }) { Text("Çıkış") }
                 }, dismissButton = {
                     Button(onClick = {
                         cikisDiyalog = false
                     }) { Text("İptal") }
-                })
+                },
+                )
             }
 
             val dbRef = FirebaseDatabase.getInstance().getReference()
@@ -171,30 +216,38 @@ fun MainScreen() {
             LaunchedEffect(paketler.size) {
                 if (paketler.isNotEmpty()) {
                     listState.animateScrollToItem(paketler.size - 1, scrollOffset = 0
-
                     )
-
                 }
             }
-
             Column(modifier = Modifier
-                .fillMaxSize()
-                .padding(16.dp, 0.dp, 16.dp, 0.dp), horizontalAlignment = Alignment.Start, verticalArrangement = Arrangement.Center) {
-                Box(Modifier
-                    .fillMaxSize()
-                    .weight(0.07f)
-                    .background(Color.Green)) {
+                .fillMaxSize(),
+                horizontalAlignment = Alignment.Start, verticalArrangement = Arrangement.Center) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp)
+                        .background(Color(0xFF2F80ED)) // Üst barın arka plan rengi
+                )
+                {
                     IconButton(onClick = {
                         cikisDiyalog = true
-                    }) {
-                        Icon(imageVector = Icons.Default.Close, contentDescription = "Çıkış", tint = Color.Red, modifier = Modifier.size(20.dp))
+                    }, modifier = Modifier
+                        .align(Alignment.CenterStart) // Sol üstte konumlandırma
+                        .padding(start = 8.dp)) {
+                        Icon(imageVector = Icons.Default.Close, contentDescription = "Çıkış", tint = Color.White)
                     }
-                    Text(text = argumanlar.kAdi.toString(), Modifier
-                        .align(Alignment.BottomEnd)
-                        .padding(0.dp, 0.dp, 16.dp, 8.dp))
+                    Text(
+                        text = argumanlar.kAdi.toString(),
+                        color = Color.White,
+                        letterSpacing = 1.2.sp,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Medium,
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(end = 8.dp, bottom = 8.dp))
                 }
                 LazyColumn(modifier = Modifier
-                    .fillMaxWidth()
+                    .fillMaxWidth(0.95f)
                     .fillMaxHeight()
                     .weight(0.9f), state = listState, verticalArrangement = Arrangement.Bottom) {
                     items(paketler) { paket ->
@@ -204,14 +257,27 @@ fun MainScreen() {
                     }
                 }
                 Row(Modifier
-                    .weight(0.1f)
-                    .padding(0.dp, 0.dp, 0.dp, 16.dp)) {
-                    OutlinedTextField(value = mesaj, singleLine = true, onValueChange = { text ->
-                        mesaj = text
-                    }, modifier = Modifier
-                        .weight(0.80f)
-                        .fillMaxHeight()
-                        .padding(0.dp, 0.dp, 8.dp, 0.dp))
+                    .fillMaxWidth()
+                    .padding(16.dp, 0.dp, 16.dp, 0.dp)
+                    .background(Color(0xFFF0F0F0), shape = RoundedCornerShape(24.dp))
+                    .padding(horizontal = 8.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically) {
+
+                    OutlinedTextField(
+                        value = mesaj,
+                        onValueChange = { mesaj = it },
+                        placeholder = { Text(text = "Mesajınızı yazın...") },
+                        /*colors = TextFieldDefaults.outlinedTextFieldColors(
+                            focusedBorderColor = Color.Transparent,
+                            unfocusedBorderColor = Color.Transparent,
+                            backgroundColor = Color.White
+                        ),*/
+                        shape = RoundedCornerShape(18.dp),
+                        singleLine = true,
+                        modifier = Modifier.padding(end = 5.dp)
+                            .fillMaxWidth(.85f)
+                    )
+
                     IconButton(onClick = {
                         if (mesaj.isNotBlank()) {
                             val zamanDamgasi = Instant.now()
@@ -223,12 +289,11 @@ fun MainScreen() {
                             mesaj = ""
                         }
                     }, modifier = Modifier
-                        .background(brush = Brush.horizontalGradient(colors = listOf(Color(0xFF56CCF2), Color(0xFF2F80ED))))
-                        .weight(0.20f)
-                        .fillMaxSize()) {
-                        Icon(imageVector = Icons.AutoMirrored.Filled.Send, contentDescription = "Gönder", modifier = Modifier
-                            .fillMaxSize()
-                            .padding(22.dp))
+                        .size(48.dp)
+                        .background(Color(0xFF2F80ED), shape = CircleShape))
+                    {
+                        Icon(imageVector = Icons.AutoMirrored.Filled.Send, contentDescription = "Gönder",
+                            modifier = Modifier.padding(4.dp))
                     }
                 }
             }
@@ -239,7 +304,6 @@ fun MainScreen() {
 fun MesajGonder(mesajPaketi: MesajPaketi) {
     val dataBaseRef = FirebaseDatabase.getInstance().getReference()
     dataBaseRef.child("Packages").child("MessageLog").child(mesajPaketi.zamanDamgasi.toString()).setValue(mesajPaketi)
-
 }
 
 fun GirisButon(kAdi: String, navController: NavController) {
@@ -279,15 +343,7 @@ fun GirisButon(kAdi: String, navController: NavController) {
 
 }
 
-@Composable
-fun ModernButon(onClick: () -> Unit, modifier: Modifier = Modifier, text: String) {
-    Button(
-        onClick = onClick,
-        colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),
-        modifier = modifier.background(brush = Brush.horizontalGradient(colors = listOf(Color(0xFF56CCF2), Color(0xFF2F80ED)))),
-    ) { Text(text = text) }
-}
-
+/*
 @Composable
 fun MesajSatiri(paket: MesajPaketi, aktifKullanici: String?) {
     Row(modifier = Modifier
@@ -310,5 +366,51 @@ fun MesajSatiri(paket: MesajPaketi, aktifKullanici: String?) {
 
     }
 }
+*/
+@Composable
+fun MesajSatiri(
+    paket: MesajPaketi, aktifKullanici: String?
+) {
+    val zamanDamgasiParcala = paket.zamanDamgasi!!.split("|")
+    val SDS = zamanDamgasiParcala[2]
+    val SD = SDS.split(":")
+    Row(
+        modifier = Modifier.fillMaxWidth(),
 
+        horizontalArrangement = if (aktifKullanici == paket.kadi) Arrangement.End else Arrangement.Start
+    ) {
+        Column(
+            modifier = Modifier
+                .padding(8.dp)
+                .clip(RoundedCornerShape(16.dp))
+                .background(
+                    color = if (aktifKullanici == paket.kadi) Color(0xFF2F80ED) else Color(0xFFEDEDED),
+                )
+                .padding(12.dp)
+                .widthIn(min = 80.dp, max = 265.dp)
+        ) {
+            Text(
+                text = paket.kadi,
+                color = if (aktifKullanici == paket.kadi) Color.LightGray else Color.DarkGray,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                text = paket.mesaj,
+                color = if (aktifKullanici == paket.kadi) Color.White else Color.Black,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Normal
+            )
+            Text(
+                text = SD[0] + ":" + SD[1],
+                color = if (aktifKullanici == paket.kadi) Color.White.copy(alpha = 0.7f) else Color.Black.copy(alpha = 0.7f),
+                fontSize = 12.sp,
+                textAlign = TextAlign.End,
+                modifier = Modifier
+                    .align(Alignment.End)
+                    .padding(top = 4.dp)
+            )
+        }
+    }
+}
 
