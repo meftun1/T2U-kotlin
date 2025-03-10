@@ -9,6 +9,7 @@ import androidx.activity.compose.setContent
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -75,6 +76,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.ProcessLifecycleOwner
 import kotlinx.coroutines.delay
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.res.painterResource
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -131,15 +133,12 @@ fun AnaEkran() {
                     verticalArrangement = Arrangement.Center,
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    // Uygulamanın Adı
-                    Text(
-                        text = "T2U",
-                        fontSize = 48.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White,
-                        modifier = Modifier.padding(bottom = 32.dp)
-                    )
+                    //Uygulama logosu
+                    Image(
+                       painter = painterResource(id=R.drawable.logo_transparent),
+                       contentDescription = "Logo şeffaf",
 
+                    )
                     // Kullanıcı adı girişi
                     OutlinedTextField(
                         value = kAdi,
@@ -151,7 +150,7 @@ fun AnaEkran() {
                         singleLine = true,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 16.dp)
+                            .padding(horizontal = 20.dp)
                             .background(Color.White.copy(alpha = 0.2f), shape = RoundedCornerShape(8.dp))
                     )
 
@@ -165,7 +164,7 @@ fun AnaEkran() {
                         },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 16.dp)
+                            .padding(horizontal = 24.dp)
                             .height(48.dp),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = Color(0xFF2F80ED)

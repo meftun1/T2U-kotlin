@@ -78,4 +78,6 @@ dependencies {
     implementation("com.google.firebase:firebase-analytics-ktx")
     implementation("com.google.firebase:firebase-messaging-ktx:24.1.0")
     implementation("com.google.firebase:firebase-database-ktx:21.0.0")
+    implementation("io.coil-kt:coil-compose:2.4.0")
+
 }
