@@ -1,5 +1,4 @@
 package com.example.text2ukotent
-
 import androidx.compose.ui.graphics.Color
 import android.os.Bundle
 import android.util.Log
@@ -8,6 +7,8 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.appcompat.app.AppCompatDelegate
+import androidx.compose.animation.AnimatedContentTransitionScope
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -39,7 +40,6 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -73,7 +73,12 @@ import java.time.format.DateTimeFormatter
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.ProcessLifecycleOwner
-
+import kotlinx.coroutines.delay
+import androidx.compose.runtime.LaunchedEffect
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -81,8 +86,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO)
             Text2UKotEntTheme {
-                YasamDongusuGozlemcisi()
-                MainScreen()
+                AnaEkran()
             }
         }
     }
@@ -98,12 +102,20 @@ data class SohbetOdasi(val kAdi: String?)
 data class MesajPaketi(val kadi: String = "", val mesaj: String = "", val zamanDamgasi: String? = "")
 
 @Composable
-fun MainScreen() {
+fun AnaEkran() {
     val navController = rememberNavController()
-    NavHost(navController = navController, startDestination = Giris) {
+    NavHost(
+        navController = navController,
+        startDestination = Giris,
+        exitTransition = { slideOutOfContainer(AnimatedContentTransitionScope.SlideDirection.Left, tween(1000)) },
+        enterTransition = { slideIntoContainer(AnimatedContentTransitionScope.SlideDirection.Left, tween(1000)) }
+    ) {
         composable<Giris> {
             // Kullanıcı adını tutacak state
             var kAdi by remember {
+                mutableStateOf("")
+            }
+            var onlineSayisi by remember {
                 mutableStateOf("")
             }
             // Arka plan
@@ -148,7 +160,7 @@ fun MainScreen() {
                     Button(
                         onClick = {
                             if (kAdi.isNotBlank()) {
-                                GirisButon(kAdi, navController)
+                                GirisButon(kAdi, navController, onlineSayisi )
                             }
                         },
                         modifier = Modifier
@@ -165,11 +177,11 @@ fun MainScreen() {
                 }
             }
         }
-
         composable<SohbetOdasi> {
             val argumanlar = it.toRoute<SohbetOdasi>()
             var mesaj by remember { mutableStateOf("") }
             val context = LocalContext.current
+            YasamDongusuGozlemcisi(navController, argumanlar.kAdi.toString())
             //Diyalog değeri her değer değiştirdiği zaman ekranda çıkışın belirmesini sağlar
             var cikisDiyalog by remember { mutableStateOf(false) }
             //Geri tuşuna basıldığında çalışır
@@ -219,16 +231,18 @@ fun MainScreen() {
                 override fun onCancelled(error: DatabaseError) {}
             })
 
-            //Sohbetin otomatik olarak en alta kayması
+            //Paket sayısı değiştiğinde sohbetin otomatik olarak en alta kayması
             val listState = rememberLazyListState()
             LaunchedEffect(paketler.size) {
                 if (paketler.isNotEmpty()) {
                     listState.animateScrollToItem(paketler.size - 1, scrollOffset = 0
                     )
+
                 }
             }
             //Mesaj yazma ve görüntüleme bölümlerini içeren container
             Column(modifier = Modifier
+                .background(Brush.verticalGradient(listOf( Color(0xFF2F80ED),Color(0xFF56FCA2))))
                 .fillMaxSize(),
                 horizontalAlignment = Alignment.Start, verticalArrangement = Arrangement.Center) {
                 //Üst bar
@@ -257,6 +271,15 @@ fun MainScreen() {
                         modifier = Modifier
                             .align(Alignment.BottomEnd)
                             .padding(end = 8.dp, bottom = 8.dp))
+                    Text(
+                        text = argumanlar.kAdi.toString(),
+                        color = Color.White,
+                        letterSpacing = 1.2.sp,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Medium,
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(end = 8.dp, bottom = 8.dp))
                 }
                 //Mesajların listelenmesi için container
                 LazyColumn(modifier = Modifier
@@ -273,9 +296,9 @@ fun MainScreen() {
                 //Alt taraftaki mesaj gönderme kısmı
                 Row(Modifier
                     .fillMaxWidth()
-                    .padding(16.dp, 0.dp, 16.dp, 0.dp)
+                    .padding(16.dp, 0.dp, 16.dp, 5.dp)
                     .background(Color(0xFFF0F0F0), shape = RoundedCornerShape(24.dp))
-                    .padding(horizontal = 8.dp, vertical = 4.dp),
+                    .padding(horizontal = 8.dp, vertical = 6.dp),
                     verticalAlignment = Alignment.CenterVertically) {
 
                     //Mesaj girilen bölüm
@@ -304,7 +327,7 @@ fun MainScreen() {
                         .size(48.dp)
                         .background(Color(0xFF2F80ED), shape = CircleShape))
                     {
-                        Icon(imageVector = Icons.AutoMirrored.Filled.Send, contentDescription = "Gönder",
+                        Icon(imageVector = Icons.AutoMirrored.Filled.Send,tint=Color.White, contentDescription = "Gönder",
                             modifier = Modifier.padding(4.dp))
                     }
                 }
@@ -319,7 +342,7 @@ fun MesajGonder(mesajPaketi: MesajPaketi) {
     dataBaseRef.child("Packages").child("MessageLog").child(mesajPaketi.zamanDamgasi.toString()).setValue(mesajPaketi)
 }
 
-fun GirisButon(kAdi: String, navController: NavController) {
+fun GirisButon(kAdi: String, navController: NavController,onlineSayisi:String) {
     val databaseReference = FirebaseDatabase.getInstance().getReference()
     var yeniGirisYap = true
     //Kullanıcı adı kontrolü 3-10 karakter
@@ -348,6 +371,13 @@ fun GirisButon(kAdi: String, navController: NavController) {
                     //Kullanıcı girişine izin veriliyor ve veritabanı güncelleniyor
                     if (yeniGirisYap) {
                         databaseReference.child("Packages").child("OnlineUsers").child(kAdi).setValue(kAdi)
+                        databaseReference.child("Packages").child("OnlineUsers").addListenerForSingleValueEvent(object :ValueEventListener{
+                            override fun onDataChange(snapshot: DataSnapshot) {
+                               // onlineSayisi=snapshot.children.count().toString()
+                            }
+
+                            override fun onCancelled(error: DatabaseError) {}
+                        })
                         navController.navigate(SohbetOdasi(kAdi))
                     }
                 }
@@ -382,7 +412,7 @@ fun MesajSatiri(
                 .padding(8.dp)
                 .clip(RoundedCornerShape(16.dp))
                 .background(
-                    color = if (aktifKullanici == paket.kadi) Color(0xFF2F80ED) else Color(0xFFEDEDED),
+                    color = if (aktifKullanici == paket.kadi) Color(0xFF315D8D) else Color(0xFFEDEEDA),
                 )
                 .padding(12.dp)
                 .widthIn(min = 80.dp, max = 265.dp)
@@ -419,30 +449,32 @@ fun MesajSatiri(
 }
 
 @Composable
-fun YasamDongusuGozlemcisi() {
+fun YasamDongusuGozlemcisi(navController: NavController, kadi: String) {
+    var coRoutine: Job? = null
     val donguSahibi = ProcessLifecycleOwner.get()
     val donguGozlemcisi = LifecycleEventObserver { _, event ->
         when (event) {
-            Lifecycle.Event.ON_CREATE -> {
-                Log.println(Log.INFO,"ismet","oluştu")
-            }
+            Lifecycle.Event.ON_CREATE -> {}
+            //Uygulama doğrudan kapatılırsa çıkış yapar
             Lifecycle.Event.ON_START -> {
-                Log.println(Log.INFO,"ismet","başladı")
+                FirebaseDatabase.getInstance().getReference().child("Packages").child("OnlineUsers").child(kadi).onDisconnect().removeValue()
             }
             Lifecycle.Event.ON_RESUME -> {
-                Log.println(Log.INFO,"ismet","devam etti")
+                Log.println(Log.INFO, "ismet", "devam etti")
+                coRoutine?.cancel()
             }
-            Lifecycle.Event.ON_PAUSE -> {
-                Log.println(Log.INFO,"ismet","pause oldu")
-            }
+            Lifecycle.Event.ON_PAUSE -> {}
             Lifecycle.Event.ON_STOP -> {
-                // Uygulama arka planda veya kapanmak üzere
-                Log.println(Log.INFO,"ismet","stop oldu bg olması lazım")
+                // Uygulama arka plandaysa bekler ve zaman aşımında çıkış yapar
+                coRoutine = CoroutineScope(Dispatchers.IO).launch {
+                    Log.println(Log.INFO, "ismet", "içerideyim")
+                    delay(300000)
+                    FirebaseDatabase.getInstance().getReference().child("Packages").child("OnlineUsers").child(kadi).removeValue()
+                    navController.navigate(Giris)
+                    Log.println(Log.INFO, "ismet", "bekledim ve bitirdim")
+                }
             }
-            Lifecycle.Event.ON_DESTROY -> {
-                // Uygulama kapanıyor (Aniden kapandıysa da bu çalışabilir)
-                Log.println(Log.INFO,"ismet","kapandı")
-            }
+            Lifecycle.Event.ON_DESTROY -> {}
             Lifecycle.Event.ON_ANY -> {}
         }
 
